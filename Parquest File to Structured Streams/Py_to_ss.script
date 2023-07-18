@@ -1,0 +1,120 @@
+﻿//Script GUID:e6fc81c5-36f9-4932-84b1-2f1824e80474
+//Used for tracking history
+
+
+/*
+Description : Create Structured Semantic Streams from Raw(Parquet) Semantic Streams
+Author: VENKATESH DONAVALLI (vdonaval)
+
+
+Expected parameters
+@@environment@@ --> For test pass test, for prod leave out this parameter
+@@date@@ --> Pass the date for which the Structured Stream is being generated
+@@input_base_path@@ --> leave empty for cosmos11, for others pass /shares/skypedata.adhoc/
+@@output_base_path@@ --> leave empty for cosmos11, for others pass /shares/skypedata.adhoc/
+@@workload@@ --> Pass the workload for which the Strucutred Stream is being generated
+@@cloud_type@@ --> public/gcch/dod
+@@expiration_days@@ --> Stream Expiry
+@@partitions@@ --> Number of partitions for the output streams. Optional. The default is 1000, can reduced if needed.
+*/
+
+// run with Nebula Parameter: -on ScopeNewUdoModel -on EnableParquetUdos
+SET @@FeaturePreviews = "EnableParquetUdos:on,ScopeNewUdoModel:on";
+
+REFERENCE "/shares/skypedata.adhoc/SkypeSchemas/Latest/SkypeSchemas.dll";
+REFERENCE "/shares/skypedata.adhoc/SkypeHelpers/Latest/SkypeHelpers.dll";
+MODULE "/shares/skypedata.adhoc/local/Reference/PrivacyAnnotation/PrivacyAnnotation.module";
+
+
+USING Privacy;
+
+
+#IF ("@@date@@".StartsWith("@@"))
+    #DECLARE inputdate string = DateTime.UtcNow.AddDays(-1).ToString("yyyy-MM-ddT00:00:00");
+#ELSE 
+    #DECLARE inputdate string = "@@date@@";
+#ENDIF
+
+#IF ("@@input_base_path@@".StartsWith("@@"))
+    #DECLARE inputBasePath string = "";
+#ELSE 
+    #DECLARE inputBasePath string = "@@input_base_path@@";
+#ENDIF
+
+#IF ("@@output_base_path@@".StartsWith("@@"))
+    #DECLARE outputBasePath string = "";
+#ELSE 
+    #DECLARE outputBasePath string = "@@output_base_path@@";
+#ENDIF
+
+#IF ("@@partitions@@".StartsWith("@@"))
+    #DECLARE partitionsInt int = 1000;
+#ELSE 
+    #DECLARE partitionsInt int = Convert.ToInt32("@@partitions@@");
+#ENDIF
+
+#DECLARE start DateTime = DateTime.Parse(@inputdate);
+
+#DECLARE inputBaseFullPath string = string.Format("{0}/local/microsoftteams/data/{1}/SemanticStreams/raw/{2}/{3}", @inputBasePath, "prod", @@cloud_type@@, @@workload@@);
+#DECLARE outputBaseFullPath string = string.Format("{0}/local/microsoftteams/data/{1}/ProdIntelligence/SemanticCopilot/structured/{2}/{3}",@outputBasePath, "DataScience", @@cloud_type@@, @@workload@@); 
+
+#DECLARE outputFileName string = string.Format("{0}_{1:yyyy_MM_dd}.ss", @@workload@@, @start);
+
+#DECLARE semanticStreamPQ string = string.Format("{0}/{1:yyyy/MM/dd}/", @inputBaseFullPath, @start);
+#DECLARE semanticStreamSS string = string.Format("{0}/{1:yyyy/MM/dd}/{2}", @outputBaseFullPath, @start, @outputFileName);
+
+#DECLARE successFilePath_daily string = string.Format("{0}/{1:yyyy/MM/dd}/_SUCCESS", @inputBaseFullPath, @start);
+
+//These are dummy variables that we are using to fail the process if _SUCCESS file is not present
+#DECLARE failureDummyFilePattern string = "failureDummyFile_%Y_%m_%d.ss";
+#DECLARE startStr string  = @start.ToString("yyyy-MM-dd");
+
+#DECLARE viewPath string = "/shares/skypedata.adhoc/local/microsoftteams/views/CommonDynamicView.view";
+
+//workload = Chat --> SkypeSchemas.Skype.MicrosoftTeams.Semantics.WorkLoadChat
+//workload = Channel --> SkypeSchemas.Skype.MicrosoftTeams.Semantics.WorkLoadChannel
+//workload = CollabAction --> SkypeSchemas.Skype.MicrosoftTeams.Semantics.WorkLoadCollabAction
+//workload = Files --> SkypeSchemas.Skype.MicrosoftTeams.Semantics.WorkLoadFiles
+//workload = CMD --> SkypeSchemas.Skype.MicrosoftTeams.Semantics.WorkLoadCMD
+#DECLARE schemaInterface string  = string.Format("SkypeSchemas.Skype.MicrosoftTeams.Semantics.WorkLoad{0}",@@workload@@);
+
+#DECLARE successFilePath_hourly string =  "{0}/{1:yyyy}/{1:MM}/{1:dd}/{1:HH}/_SUCCESS";
+// get _SUCCESS file count in the given processing date, expecting 24 as they are one per hour.
+#DECLARE avilableHourlySuccessFilesCount int = Enumerable.Range(0, 24).Select(x => @start.AddHours(x)).Where(x => EXISTS(string.Format(@successFilePath_hourly,@inputBaseFullPath, x))).Count();
+
+baseData = 
+#IF(EXISTS(@successFilePath_daily))   
+VIEW @viewPath
+    PARAMS
+    (
+        InputPath = @semanticStreamPQ + "{*}.parquet",
+        SchemaInterface = @schemaInterface
+    );
+#ELSEIF(@avilableHourlySuccessFilesCount == 24)   
+VIEW @viewPath
+    PARAMS
+    (
+        InputPath = @semanticStreamPQ + "{*}/{*}.parquet",
+        SchemaInterface = @schemaInterface
+    );
+#ELSE
+    //If we have reached this point then the raw data is not yet available for conversion. 
+    //This block of code is present here to just fail the process with error E_STORE_USER_FILENOTFOUND, so that the process can retry automatically
+    SSTREAM
+    STREAMSET @semanticStreamPQ 
+    PATTERN @failureDummyFilePattern 
+    RANGE __date=[@startStr, @startStr];
+#ENDIF
+
+[Privacy.Asset.IntermediateEngineering]
+[Privacy.DataType.ProductAndServiceUsage]
+[Privacy.Subject.User.Cid(Column="UserId")]
+[Privacy.Subject.User.ObjectId(Column="UserId")]
+[Privacy.DataType.ProductAndServiceUsage.Date(Column="EventTimeStamp")]
+
+OUTPUT
+TO SSTREAM @semanticStreamSS
+CLUSTERED BY UserId,TenantId
+SORTED BY UserId,TenantId
+    WITH STREAMEXPIRY @@expiration_days@@;
+

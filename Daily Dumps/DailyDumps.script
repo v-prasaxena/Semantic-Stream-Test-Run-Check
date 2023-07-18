@@ -1,0 +1,915 @@
+﻿//Script GUID:068ef2ce-4cf8-4540-a146-19ad493cb5db
+//Used for tracking history
+
+/************************************************************************************************************
+1.  Script Name             : MU_ProductIntelligence_BackEndData_1Hrs_BiStreams_2018-12-01_2018-12-31
+2.  Client Name             : Blake Shepard (Blake.Shepard@microsoft.com)
+3.  Project Name            : Daily Dump Creation
+4.  Author's Name           : Swapnil Nath (v-swnath) (Mu-Sigma Inc.)   
+5.  Reviewer's Name         : -   
+6.  Stream Expiry Days      : -  
+7.  GDPR Tagging Status     : Yes
+8.  Description of Script   : This script provides collated hourly streams to make daily dump
+9.  Additional Comments     : -   
+*********************************************************************************************************************************/
+
+//GDPR
+MODULE "/shares/skypedata.adhoc/PrivacyAnnotation/PrivacyAnnotation.module";
+USING Privacy;
+
+// Old: MODULE "/shares/PXSCosmos14.Prod/PXS.DeleteSignal.PROD/PrivacyAnnotation/PrivacyAnnotation.module";
+// Old: USING Privacy;
+
+[PIN] REFERENCE @"/shares/skypedata.adhoc/SkypeHelpers/Latest/SkypeHelpers.dll";
+[PIN] REFERENCE @"/shares/skypedata.adhoc/SkypeSchemas/Latest/SkypeSchemas.dll";
+
+// Old: REFERENCE @"/shares/skypedata.adhoc/CosmosExtractor/Latest/Microsoft.Bond.dll";
+// Old: REFERENCE @"/shares/skypedata.adhoc/CosmosExtractor/Latest/Microsoft.Bond.Interfaces.dll";
+// Old: REFERENCE @"/shares/skypedata.adhoc/CosmosExtractor/Latest/Microsoft.Bond.Rpc.dll";
+// Old: REFERENCE @"/shares/skypedata.adhoc/CosmosExtractor/Latest/NetTrace.dll";
+// Old: REFERENCE @"/shares/skypedata.adhoc/CosmosExtractor/Latest/Newtonsoft.Json.dll";
+// Old: REFERENCE @"/shares/skypedata.adhoc/CosmosExtractor/Latest/protobuf-net.dll";
+// Old: REFERENCE @"/shares/skypedata.adhoc/CosmosExtractor/Latest/Skype.Data.Common.IO.Ray.dll";
+
+REFERENCE @"/shares/skypedata.adhoc/SkypeHelpers/Latest/Microsoft.Bond.dll";
+REFERENCE @"/shares/skypedata.adhoc/SkypeHelpers/Latest/Microsoft.Bond.Interfaces.dll";
+REFERENCE @"/shares/skypedata.adhoc/SkypeHelpers/Latest/Microsoft.Bond.Rpc.dll";
+REFERENCE @"/shares/skypedata.adhoc/SkypeHelpers/Latest/NetTrace.dll";
+REFERENCE @"/shares/skypedata.adhoc/SkypeHelpers/Latest/Newtonsoft.Json.dll";
+REFERENCE @"/shares/skypedata.adhoc/SkypeHelpers/Latest/protobuf-net.dll";
+REFERENCE @"/shares/skypedata.adhoc/SkypeHelpers/Latest/Skype.Data.Common.IO.Ray.dll";
+
+USING SkypeHelpers.MicrosoftTeams;
+USING SkypeHelpers.Schemas;
+USING SkypeHelpers.Schemas.Extractor;
+USING SkypeHelpers.Schemas.Adjuster;
+USING SkypeSchemas.Skype.MicrosoftTeams.Common;
+USING System;
+
+#DECLARE Start_Date DateTime = DateTime.Parse(@"2022-05-08");
+//#DECLARE Start_Date DateTime = DateTime.Parse("@@Start_Date@@");
+#DECLARE Day1Date DateTime = Convert.ToDateTime(@Start_Date);
+
+#DECLARE Day1 string = (@Day1Date).ToString("yyyy-MM-dd");
+
+#DECLARE EndDayYear string =  Convert.ToString((@Day1Date).ToString("yyyy"));
+#DECLARE EndDayMonth string = Convert.ToString((@Day1Date).ToString("MM"));
+#DECLARE EndDayDate string =  Convert.ToString((@Day1Date).ToString("dd"));
+
+
+#DECLARE PanelViewPath string = @"/shares/skypedata.adhoc/local/microsoftteams/aria/processed/prod/bi/panelview/";
+#DECLARE PanelActionPath string = @"/shares/skypedata.adhoc/local/microsoftteams/aria/processed/prod/bi/panelaction/";
+#DECLARE PanelViewPattern string = "%Y/%m/%d/panelview_%Y_%m_%d_%h.ss";
+#DECLARE PanelActionPattern string = "%Y/%m/%d/panelaction_%Y_%m_%d_%h.ss";
+
+
+PanelView_Stream_Day1P1 =
+    SSTREAM SPARSE STREAMSET @PanelViewPath
+                   PATTERN @PanelViewPattern
+                   RANGE __date = [ @Day1,@Day1 ],
+                         __hour = ["00","23"]
+    USING SchemaAdjuster<PanelViewSchemaAdjuster>;
+
+
+
+PanelAction_Stream_Day1P1 =
+    SSTREAM SPARSE STREAMSET @PanelActionPath
+                   PATTERN @PanelActionPattern
+                   RANGE __date = [ @Day1,@Day1 ],
+                         __hour = ["00","23"]
+    USING SchemaAdjuster<PanelActionSchemaAdjuster>;
+
+
+#DECLARE Data string = "/shares/skypedata.adhoc/local/microsoftteams/data/DataScience/DumpCreation/DailyDump/V9/DailyDump_Ending_" + @EndDayYear + "_" + @EndDayMonth + "_" + @EndDayDate + ".ss";
+
+
+UserEvents_Day1 =
+    SELECT @Day1Date AS Date,
+           EventInfo_Source,
+           EventInfo_Name,
+           EventInfo_Time,
+           EventInfo_InitId,
+           EventInfo_SdkVersion,
+           EventInfo_Sequence,
+           EventInfo_BaseType,
+           EventInfo_Id,
+           PipelineInfo_ClientCountry,
+           PipelineInfo_AccountId,
+           PipelineInfo_ClientIp,
+           PipelineInfo_IngestionTime,
+           DeviceInfo_OsName,
+           DeviceInfo_OsVersion,
+           DeviceInfo_OsBuild,
+           DeviceInfo_Id,
+           DeviceInfo_Make,
+           DeviceInfo_Model,
+           DeviceInfo_NetworkProvider,
+           DeviceInfo_NetworkType,
+           DeviceInfo_NetworkCost,
+           DeviceInfo_DetailModel,
+           DeviceInfo_CpuArchitecture,
+           DeviceInfo_CpuCores,
+           DeviceInfo_CpuSpeed,
+           DeviceInfo_SDKUid,
+           DeviceInfo_TotalMemory,
+           machineId,
+           DeviceInfo_BrowserName,
+           DeviceInfo_BrowserVersion,
+           DeviceInfo_ScreenResolution,
+           DeviceInfo_PixelWidth,
+           DeviceInfo_PixelHeight,
+           AppInfo_Id,
+           AppInfo_ClientType,
+           AppInfo_Version,
+           AppInfo_Environment,
+           AppInfo_Language,
+           AppInfo_BuildTime,
+           AppInfo_ProcessArchitecture,
+           AppInfo_CommitHash,
+           AppInfo_ExperimentIds,
+           Session_Id,
+           UserInfo_Language,
+           UserInfo_TimeZone,
+           UserInfo_Id,
+           UserInfo_MsaId,
+           UserInfo_ANID,
+           UserInfo_AdvertisingId,
+           UserInfo_Upn,
+           UserInfo_TenantId,
+           UserInfo_Mri,
+           UserInfo_UserType,
+           UserInfo_ETag,
+           UserInfo_Flights,
+           UserInfo_Ring,
+           UserInfo_Role,
+           UserInfo_LicenseType,
+           UserInfo_TenantModel,
+           Thread_Id,
+           Thread_Type,
+           Thread_Members,
+           Team_Id,
+           Team_Name,
+           Team_Size,
+           Team_Visibility,
+           Team_Classification,
+           Team_TeamType,
+           Team_OfficeGroupId,
+           Team_MemType,
+           Panel_ViewId,
+           Panel_Type,
+           Panel_Uri,
+           Panel_UriParams,
+           Tab_Id,
+           Tab_Type,
+           Tab_Ordinal,
+           Call_Id,
+           Call_ParticipantId,
+           Databag_DefinitionId,
+           Databag_FileControl,
+           Databag_Directive,
+           Databag_CallId,
+           Databag_ParticipantId,
+           Databag_MessageType,
+           Databag_AtMentions,
+           Databag_FileAction,
+           Databag_FileType,
+           Databag_Attachments,
+           Databag_ChannelMentions,
+           Databag_Emoji,
+           Databag_ImportantFlag,
+           Databag_Links,
+           Databag_MessageLength,
+           Databag_Pinned,
+           Databag_RichText,
+           Databag_RosterSize,
+           Databag_SfbInteropMessage,
+           Databag_Size,
+           Databag_SubjectPresent,
+           Databag_TeamMentions,
+           Databag_WasReply,
+           Databag_ChainId,
+           Databag_FeedReadState,
+           Databag_FeedActivityId,
+           Databag_metaInformation,
+           Databag_messageID,
+           Databag_parentMessageID,
+           Databag_channelAction,
+           Databag_state,
+           Databag_payload,
+           Databag_FeedActivityType,
+           Databag_FeedLastMessageId,
+           Databag_FeedSourceThreadId,
+           Databag_FeedOriginatedDT,
+           Databag_ActivityViewId_Guid,
+           Databag_ToastType,
+           Databag_BotMentions,
+           //Convert.ToInt32(DataBag_currIndex) AS DataBag_currIndex,
+           Bot_Id,
+           Databag_BotMentionedMriCollection,
+           Message_CorrelationId,
+           Message_EndpointId,
+           DataBag_Id,
+           DataBag_CoachMark,
+           DataBag_Treatment,
+           DataBag_Message,
+           DataBag_SendType,
+           DataBag_BotMri,
+           DataBag_botmentionedAppIdCollection,
+           App_Id,
+           DataBag_Bot_Id,
+           DataBag_Team_Id,
+           App_Connector_Id,
+           App_StaticTabName,
+           DataBag_inputExtensionBotId,
+           App_InputExtensionBotId,
+           ComposeExtension_BotId,
+           DataBag_inputExtensionMrisCollection,
+           Databag_AutoreconnectShown,
+           Databag_DialIn,
+           Databag_DialOut,
+           Databag_PreviousCallId,
+           Databag_PreviousParticipantId,
+           Databag_Context,
+           Databag_AlertName,
+           DataBag_IsTeamNew,
+           DataBag_IsChannelNew,
+           DataBag_NewTeams,
+           DataBag_shortcutCommandIdentifier,
+           DataBag_invitationsSent,
+           DataBag_slashCommand,
+           DataBag_NewChannels,
+           Call_DataBag,
+           App_Source,
+           Databag_ActionType,
+           App_Name,
+           App_ExternalId,
+           App_Capabilities,
+           App_IsTenantApp,
+           Databag_AppId,
+           App_Scope,
+           App_ScenarioCapability,
+           Databag_totalFeedsCount,
+           DataBag_isFavDefault,
+           DataBag_SuggestedChatClick,
+           DataBag_attachments,
+           DataBag_atmentions,
+           DataBag_channelmentions,
+           DataBag_teammentions,
+           DataBag_closedBy,
+           Panel_LaunchSource,
+           DataBag_CampaignId,
+           DataBag_LinkType,
+           //Convert.ToInt32(DataBag_privateTeamCount) AS DataBag_privateTeamCount,
+           //DataBag_publicTeamCount,
+           //DataBag_nonrelevantTeamCount,
+           DataBag_column,
+           Databag_InstallationDistributionSource,
+           Action_Outcome,
+           Action_Gesture,
+           Action_Scenario,
+           Action_ScenarioType,
+           Action_DestinationUri,
+           Action_DestinationUriParams,
+           Module_Type,
+           Module_Name,
+           //Module_Summary,
+           Module_State,
+           Module_DirectiveLineage,
+           Module_OrdinalLineage,
+           ActionScenarioLowerCase,
+           ActionScenarioTypeLowerCase,
+           FriendlyActionScenarioName,
+           "" AS Panel_Region,
+           "" AS Panel_LaunchMethod,
+           "" AS Panel_PreviousUri,
+           "" AS Panel_PreviousUriParams
+    FROM PanelAction_Stream_Day1P1
+    UNION ALL
+    SELECT @Day1Date AS Date,
+           EventInfo_Source,
+           EventInfo_Name,
+           EventInfo_Time,
+           EventInfo_InitId,
+           EventInfo_SdkVersion,
+           EventInfo_Sequence,
+           EventInfo_BaseType,
+           EventInfo_Id,
+           PipelineInfo_ClientCountry,
+           PipelineInfo_AccountId,
+           PipelineInfo_ClientIp,
+           PipelineInfo_IngestionTime,
+           DeviceInfo_OsName,
+           DeviceInfo_OsVersion,
+           DeviceInfo_OsBuild,
+           DeviceInfo_Id,
+           DeviceInfo_Make,
+           DeviceInfo_Model,
+           DeviceInfo_NetworkProvider,
+           DeviceInfo_NetworkType,
+           DeviceInfo_NetworkCost,
+           DeviceInfo_DetailModel,
+           DeviceInfo_CpuArchitecture,
+           DeviceInfo_CpuCores,
+           DeviceInfo_CpuSpeed,
+           DeviceInfo_SDKUid,
+           DeviceInfo_TotalMemory,
+           machineId,
+           DeviceInfo_BrowserName,
+           DeviceInfo_BrowserVersion,
+           DeviceInfo_ScreenResolution,
+           DeviceInfo_PixelWidth,
+           DeviceInfo_PixelHeight,
+           AppInfo_Id,
+           AppInfo_ClientType,
+           AppInfo_Version,
+           AppInfo_Environment,
+           AppInfo_Language,
+           AppInfo_BuildTime,
+           AppInfo_ProcessArchitecture,
+           AppInfo_CommitHash,
+           AppInfo_ExperimentIds,
+           Session_Id,
+           UserInfo_Language,
+           UserInfo_TimeZone,
+           UserInfo_Id,
+           UserInfo_MsaId,
+           UserInfo_ANID,
+           UserInfo_AdvertisingId,
+           UserInfo_Upn,
+           UserInfo_TenantId,
+           UserInfo_Mri,
+           UserInfo_UserType,
+           UserInfo_ETag,
+           UserInfo_Flights,
+           UserInfo_Ring,
+           UserInfo_Role,
+           UserInfo_LicenseType,
+           UserInfo_TenantModel,
+           Thread_Id,
+           Thread_Type,
+           Thread_Members,
+           Team_Id,
+           Team_Name,
+           Team_Size,
+           Team_Visibility,
+           Team_Classification,
+           Team_TeamType,
+           Team_OfficeGroupId,
+           Team_MemType,
+           Panel_ViewId,
+           Panel_Type,
+           Panel_Uri,
+           Panel_UriParams,
+           Tab_Id,
+           Tab_Type,
+           Tab_Ordinal,
+           Call_Id,
+           Call_ParticipantId,
+           Databag_DefinitionId,
+           Databag_FileControl,
+           Databag_Directive,
+           Databag_CallId,
+           Databag_ParticipantId,
+           Databag_MessageType,
+           Databag_AtMentions,
+           Databag_FileAction,
+           Databag_FileType,
+           Databag_Attachments,
+           Databag_ChannelMentions,
+           Databag_Emoji,
+           Databag_ImportantFlag,
+           Databag_Links,
+           Databag_MessageLength,
+           Databag_Pinned,
+           Databag_RichText,
+           Databag_RosterSize,
+           Databag_SfbInteropMessage,
+           Databag_Size,
+           Databag_SubjectPresent,
+           Databag_TeamMentions,
+           Databag_WasReply,
+           Databag_ChainId,
+           Databag_FeedReadState,
+           Databag_FeedActivityId,
+           Databag_metaInformation,
+           Databag_messageID,
+           Databag_parentMessageID,
+           Databag_channelAction,
+           Databag_state,
+           Databag_payload,
+           Databag_FeedActivityType,
+           Databag_FeedLastMessageId,
+           Databag_FeedSourceThreadId,
+           Databag_FeedOriginatedDT,
+           Databag_ActivityViewId_Guid,
+           Databag_ToastType,
+           Databag_BotMentions,
+           //Convert.ToInt32(0) AS DataBag_currIndex,
+           Bot_Id,
+           Databag_BotMentionedMriCollection,
+           Message_CorrelationId,
+           Message_EndpointId,
+           DataBag_Id,
+           DataBag_CoachMark,
+           DataBag_Treatment,
+           DataBag_Message,
+           DataBag_SendType,
+           DataBag_BotMri,
+           DataBag_botmentionedAppIdCollection,
+           App_Id,
+           DataBag_Bot_Id,
+           DataBag_Team_Id,
+           App_Connector_Id,
+           App_StaticTabName,
+           DataBag_inputExtensionBotId,
+           App_InputExtensionBotId,
+           ComposeExtension_BotId,
+           DataBag_inputExtensionMrisCollection,
+           Databag_AutoreconnectShown,
+           Databag_DialIn,
+           Databag_DialOut,
+           Databag_PreviousCallId,
+           Databag_PreviousParticipantId,
+           Databag_Context,
+           Databag_AlertName,
+           DataBag_IsTeamNew,
+           DataBag_IsChannelNew,
+           DataBag_NewTeams,
+           DataBag_shortcutCommandIdentifier,
+           DataBag_invitationsSent,
+           DataBag_slashCommand,
+           DataBag_NewChannels,
+           Call_DataBag,
+           App_Source,
+           Databag_ActionType,
+           App_Name,
+           App_ExternalId,
+           App_Capabilities,
+           App_IsTenantApp,
+           Databag_AppId,
+           App_Scope,
+           App_ScenarioCapability,
+           Databag_totalFeedsCount,
+           DataBag_isFavDefault,
+           DataBag_SuggestedChatClick,
+           DataBag_attachments,
+           DataBag_atmentions,
+           DataBag_channelmentions,
+           DataBag_teammentions,
+           DataBag_closedBy,
+           Panel_LaunchSource,
+           DataBag_CampaignId,
+           DataBag_LinkType,
+           //Convert.ToInt32(0) AS DataBag_privateTeamCount,
+           //"" AS DataBag_publicTeamCount,
+           //"" AS DataBag_nonrelevantTeamCount,
+           DataBag_column,
+           Databag_InstallationDistributionSource,
+           "" AS Action_Outcome,
+           "" AS Action_Gesture,
+           "" AS Action_Scenario,
+           "" AS Action_ScenarioType,
+           "" AS Action_DestinationUri,
+           "" AS Action_DestinationUriParams,
+           "" AS Module_Type,
+           "" AS Module_Name,
+           //"" AS Module_Summary,
+           "" AS Module_State,
+           "" AS Module_DirectiveLineage,
+           "" AS Module_OrdinalLineage,
+           "" AS ActionScenarioLowerCase,
+           "" AS ActionScenarioTypeLowerCase,
+           "" AS FriendlyActionScenarioName,
+           Panel_Region,
+           Panel_LaunchMethod,
+           Panel_PreviousUri,
+           Panel_PreviousUriParams
+    FROM PanelView_Stream_Day1P1;        
+
+[Privacy.Asset.IntermediateEngineering]
+[Privacy.DataType.ProductAndServiceUsage]
+[Privacy.Subject.User.ObjectId(Column="UserInfo_Id")]
+[Privacy.Column.TenantId(Column="UserInfo_TenantId")]
+OUTPUT TO SSTREAM @Data
+HASH CLUSTERED BY UserInfo_TenantId,UserInfo_Id
+INTO 1000
+SORTED BY UserInfo_TenantId,UserInfo_Id
+WITH STREAMEXPIRY "400";
+
+
+
+
+
+#CS
+
+
+
+public interface PanelViewSchemaAdjuster
+    {
+           [FromColumn("EventInfo_Source")] string EventInfo_Source { get; }
+           [FromColumn("EventInfo_Name")] string EventInfo_Name { get; }
+           [FromColumn("EventInfo_Time")] DateTime EventInfo_Time { get; }
+           [FromColumn("EventInfo_InitId")] string EventInfo_InitId { get; }
+           [FromColumn("EventInfo_SdkVersion")] string EventInfo_SdkVersion { get; }
+           [FromColumn("EventInfo_Sequence")] uint EventInfo_Sequence { get; }
+           [FromColumn("EventInfo_BaseType")] string EventInfo_BaseType { get; }
+           [FromColumn("EventInfo_Id")] string EventInfo_Id { get; }
+           [FromColumn("PipelineInfo_ClientCountry")] string PipelineInfo_ClientCountry { get; }
+           [FromColumn("PipelineInfo_AccountId")] string PipelineInfo_AccountId { get; }
+           [FromColumn("PipelineInfo_ClientIp")] string PipelineInfo_ClientIp { get; }
+           [FromColumn("PipelineInfo_IngestionTime")] DateTime? PipelineInfo_IngestionTime { get; }
+           [FromColumn("DeviceInfo_OsName")] string DeviceInfo_OsName { get; }
+           [FromColumn("DeviceInfo_OsVersion")] string DeviceInfo_OsVersion { get; }
+           [FromColumn("DeviceInfo_OsBuild")] string DeviceInfo_OsBuild { get; }
+           [FromColumn("DeviceInfo_Id")] string DeviceInfo_Id { get; }
+           [FromColumn("DeviceInfo_Make")] string DeviceInfo_Make { get; }
+           [FromColumn("DeviceInfo_Model")] string DeviceInfo_Model { get; }
+           [FromColumn("DeviceInfo_NetworkProvider")] string DeviceInfo_NetworkProvider { get; }
+           [FromColumn("DeviceInfo_NetworkType")] string DeviceInfo_NetworkType { get; }
+           [FromColumn("DeviceInfo_NetworkCost")] string DeviceInfo_NetworkCost { get; }
+           [FromColumn("DeviceInfo_DetailModel")] string DeviceInfo_DetailModel { get; }
+           [FromColumn("DeviceInfo_CpuArchitecture")] string DeviceInfo_CpuArchitecture { get; }
+           [FromColumn("DeviceInfo_CpuCores")] string DeviceInfo_CpuCores { get; }
+           [FromColumn("DeviceInfo_CpuSpeed")] string DeviceInfo_CpuSpeed { get; }
+           [FromColumn("DeviceInfo_SDKUid")] string DeviceInfo_SDKUid { get; }
+           [FromColumn("DeviceInfo_TotalMemory")] double DeviceInfo_TotalMemory { get; }
+           [FromColumn("machineId")] string machineId { get; }
+           [FromColumn("DeviceInfo_BrowserName")] string DeviceInfo_BrowserName { get; }
+           [FromColumn("DeviceInfo_BrowserVersion")] string DeviceInfo_BrowserVersion { get; }
+           [FromColumn("DeviceInfo_ScreenResolution")] string DeviceInfo_ScreenResolution { get; }
+           [FromColumn("DeviceInfo_PixelWidth")] int? DeviceInfo_PixelWidth { get; }
+           [FromColumn("DeviceInfo_PixelHeight")] int? DeviceInfo_PixelHeight { get; }
+           [FromColumn("AppInfo_Id")] string AppInfo_Id { get; }
+           [FromColumn("AppInfo_ClientType")] string AppInfo_ClientType { get; }
+           [FromColumn("AppInfo_Version")] string AppInfo_Version { get; }
+           [FromColumn("AppInfo_Environment")] string AppInfo_Environment { get; }
+           [FromColumn("AppInfo_Language")] string AppInfo_Language { get; }
+           [FromColumn("AppInfo_BuildTime")] DateTime? AppInfo_BuildTime { get; }
+           [FromColumn("AppInfo_ProcessArchitecture")] string AppInfo_ProcessArchitecture { get; }
+           [FromColumn("AppInfo_CommitHash")] string AppInfo_CommitHash { get; }
+           [FromColumn("AppInfo_ExperimentIds")] string AppInfo_ExperimentIds { get; }
+           [FromColumn("Session_Id")] string Session_Id { get; }
+           [FromColumn("UserInfo_Language")] string UserInfo_Language { get; }
+           [FromColumn("UserInfo_TimeZone")] string UserInfo_TimeZone { get; }
+           [FromColumn("UserInfo_Id")] string UserInfo_Id { get; }
+           [FromColumn("UserInfo_MsaId")] string UserInfo_MsaId { get; }
+           [FromColumn("UserInfo_ANID")] string UserInfo_ANID { get; }
+           [FromColumn("UserInfo_AdvertisingId")] string UserInfo_AdvertisingId { get; }
+           [FromColumn("UserInfo_Upn")] string UserInfo_Upn { get; }
+           [FromColumn("UserInfo_TenantId")] string UserInfo_TenantId { get; }
+           [FromColumn("UserInfo_Mri")] string UserInfo_Mri { get; }
+           [FromColumn("UserInfo_UserType")] string UserInfo_UserType { get; }
+           [FromColumn("UserInfo_ETag")] string UserInfo_ETag { get; }
+           [FromColumn("UserInfo_Flights")] string UserInfo_Flights { get; }
+           [FromColumn("UserInfo_Ring")] string UserInfo_Ring { get; }
+           [FromColumn("UserInfo_Role")] string UserInfo_Role { get; }
+           [FromColumn("UserInfo_LicenseType")] string UserInfo_LicenseType { get; }
+           [FromColumn("UserInfo_TenantModel")] string UserInfo_TenantModel { get; }
+           [FromColumn("Thread_Id")] string Thread_Id { get; }
+           [FromColumn("Thread_Type")] string Thread_Type { get; }
+           [FromColumn("Thread_Members")] int? Thread_Members { get; }
+           [FromColumn("Team_Id")] string Team_Id { get; }
+           [FromColumn("Team_Name")] string Team_Name { get; }
+           [FromColumn("Team_Size")] int? Team_Size { get; }
+           [FromColumn("Team_Visibility")] string Team_Visibility { get; }
+           [FromColumn("Team_Classification")] string Team_Classification { get; }
+           [FromColumn("Team_TeamType")] string Team_TeamType { get; }
+           [FromColumn("Team_OfficeGroupId")] string Team_OfficeGroupId { get; }
+           [FromColumn("Team_MemType")] string Team_MemType { get; }
+           [FromColumn("Panel_ViewId")] string Panel_ViewId { get; }
+           [FromColumn("Panel_Type")] string Panel_Type { get; }
+           [FromColumn("Panel_Uri")] string Panel_Uri { get; }
+           [FromColumn("Panel_UriParams")] string Panel_UriParams { get; }
+           [FromColumn("Tab_Id")] string Tab_Id { get; }
+           [FromColumn("Tab_Type")] string Tab_Type { get; }
+           [FromColumn("Tab_Ordinal")] int? Tab_Ordinal { get; }
+           [FromColumn("Call_Id")] string Call_Id { get; }
+           [FromColumn("Call_ParticipantId")] string Call_ParticipantId { get; }
+           [FromColumn("Databag_DefinitionId")] string Databag_DefinitionId { get; }
+           [FromColumn("Databag_FileControl")] string Databag_FileControl { get; }
+           [FromColumn("Databag_Directive")] string Databag_Directive { get; }
+           [FromColumn("Databag_CallId")] string Databag_CallId { get; }
+           [FromColumn("Databag_ParticipantId")] string Databag_ParticipantId { get; }
+           [FromColumn("Databag_MessageType")] string Databag_MessageType { get; }
+           [FromColumn("Databag_AtMentions")] string Databag_AtMentions { get; }
+           [FromColumn("Databag_FileAction")] string Databag_FileAction { get; }
+           [FromColumn("Databag_FileType")] string Databag_FileType { get; }
+           [FromColumn("Databag_Attachments")] string Databag_Attachments { get; }
+           [FromColumn("Databag_ChannelMentions")] string Databag_ChannelMentions { get; }
+           [FromColumn("Databag_Emoji")] string Databag_Emoji { get; }
+           [FromColumn("Databag_ImportantFlag")] string Databag_ImportantFlag { get; }
+           [FromColumn("Databag_Links")] string Databag_Links { get; }
+           [FromColumn("Databag_MessageLength")] string Databag_MessageLength { get; }
+           [FromColumn("Databag_Pinned")] string Databag_Pinned { get; }
+           [FromColumn("Databag_RichText")] string Databag_RichText { get; }
+           [FromColumn("Databag_RosterSize")] string Databag_RosterSize { get; }
+           [FromColumn("Databag_SfbInteropMessage")] string Databag_SfbInteropMessage { get; }
+           [FromColumn("Databag_Size")] string Databag_Size { get; }
+           [FromColumn("Databag_SubjectPresent")] string Databag_SubjectPresent { get; } 
+           [FromColumn("Databag_TeamMentions")] string Databag_TeamMentions { get; } 
+           [FromColumn("Databag_WasReply")] string Databag_WasReply { get; }
+           [FromColumn("Databag_ChainId")] string Databag_ChainId { get; }
+           [FromColumn("Databag_FeedReadState")] bool? Databag_FeedReadState { get; }
+           [FromColumn("Databag_FeedActivityId")] long? Databag_FeedActivityId { get; }
+           [FromColumn("Databag_metaInformation")] string Databag_metaInformation { get; }
+           [FromColumn("Databag_messageID")] string Databag_messageID { get; }
+           [FromColumn("Databag_parentMessageID")] string Databag_parentMessageID { get; }
+           [FromColumn("Databag_channelAction")] string Databag_channelAction { get; }
+           [FromColumn("Databag_state")] string Databag_state { get; }
+           [FromColumn("Databag_payload")] string Databag_payload { get; }
+           [FromColumn("Databag_FeedActivityType")] string Databag_FeedActivityType { get; }
+           [FromColumn("Databag_FeedLastMessageId")] long? Databag_FeedLastMessageId { get; }
+           [FromColumn("Databag_FeedSourceThreadId")] string Databag_FeedSourceThreadId { get; }
+           [FromColumn("Databag_FeedOriginatedDT")] DateTime? Databag_FeedOriginatedDT { get; }
+           [FromColumn("Databag_ActivityViewId_Guid")] string Databag_ActivityViewId_Guid { get; }
+           [FromColumn("Databag_ToastType")] string Databag_ToastType { get; }
+           [FromColumn("Databag_BotMentions")] long? Databag_BotMentions { get; }
+           //Convert.ToInt32(DataBag_currIndex) AS DataBag_currIndex,
+           [FromColumn("Bot_Id")] string Bot_Id { get; }
+           [FromColumn("Databag_BotMentionedMriCollection")] string Databag_BotMentionedMriCollection { get; }
+           [FromColumn("Message_CorrelationId")] string Message_CorrelationId { get; }
+           [FromColumn("Message_EndpointId")] string Message_EndpointId { get; }
+           [FromColumn("DataBag_Id")] string DataBag_Id { get; }
+           [FromColumn("DataBag_CoachMark")] string DataBag_CoachMark { get; }
+           [FromColumn("DataBag_Treatment")] string DataBag_Treatment { get; }
+           [FromColumn("DataBag_Message")] string DataBag_Message { get; }
+           [FromColumn("DataBag_SendType")] string DataBag_SendType { get; }
+           [FromColumn("DataBag_BotMri")] string DataBag_BotMri { get; }
+           [FromColumn("DataBag_botmentionedAppIdCollection")] string DataBag_botmentionedAppIdCollection { get; }
+           [FromColumn("App_Id")] string App_Id { get; }
+           [FromColumn("DataBag_Bot_Id")] string DataBag_Bot_Id { get; }
+           [FromColumn("DataBag_Team_Id")] string DataBag_Team_Id { get; }
+           [FromColumn("App_Connector_Id")] string App_Connector_Id { get; }
+           [FromColumn("App_StaticTabName")] string App_StaticTabName { get; } 
+           [FromColumn("DataBag_inputExtensionBotId")] string DataBag_inputExtensionBotId { get; }
+           [FromColumn("App_InputExtensionBotId")] string App_InputExtensionBotId { get; }
+           [FromColumn("ComposeExtension_BotId")] string ComposeExtension_BotId { get; }
+           [FromColumn("DataBag_inputExtensionMrisCollection")] string DataBag_inputExtensionMrisCollection { get; }
+           [FromColumn("Databag_AutoreconnectShown")] string Databag_AutoreconnectShown { get; }
+           [FromColumn("Databag_DialIn")] string Databag_DialIn { get; }
+           [FromColumn("Databag_DialOut")] string Databag_DialOut { get; }
+           [FromColumn("Databag_PreviousCallId")] string Databag_PreviousCallId { get; }
+           [FromColumn("Databag_PreviousParticipantId")] string Databag_PreviousParticipantId { get; } 
+           [FromColumn("Databag_Context")] string Databag_Context { get; }
+           [FromColumn("Databag_AlertName")] string Databag_AlertName { get; }
+           [FromColumn("DataBag_IsTeamNew")] bool? DataBag_IsTeamNew { get; }
+           [FromColumn("DataBag_IsChannelNew")] bool? DataBag_IsChannelNew { get; }
+           [FromColumn("DataBag_NewTeams")] int? DataBag_NewTeams { get; }
+           [FromColumn("DataBag_shortcutCommandIdentifier")] string DataBag_shortcutCommandIdentifier { get; }
+           [FromColumn("DataBag_invitationsSent")] int? DataBag_invitationsSent { get; }
+           [FromColumn("DataBag_slashCommand")] string DataBag_slashCommand { get; }
+           [FromColumn("DataBag_NewChannels")] int? DataBag_NewChannels { get; }
+           [FromColumn("Call_DataBag")] string Call_DataBag { get; }
+           [FromColumn("App_Source")] string App_Source { get; }
+           [FromColumn("Databag_ActionType")] string Databag_ActionType { get; }
+           [FromColumn("App_Name")] string App_Name { get; }
+           [FromColumn("App_ExternalId")] string App_ExternalId { get; }
+           [FromColumn("App_Capabilities")] string App_Capabilities { get; }
+           [FromColumn("App_IsTenantApp")] string App_IsTenantApp { get; }
+           [FromColumn("Databag_AppId")] string Databag_AppId { get; }
+           [FromColumn("App_Scope")] string App_Scope { get; }
+           [FromColumn("App_ScenarioCapability")] string App_ScenarioCapability { get; }
+           [FromColumn("Databag_totalFeedsCount")] string Databag_totalFeedsCount { get; }
+           [FromColumn("DataBag_isFavDefault")] bool? DataBag_isFavDefault { get; }
+           [FromColumn("DataBag_SuggestedChatClick")] bool? DataBag_SuggestedChatClick { get; }
+           [FromColumn("DataBag_attachments")] int? DataBag_attachments { get; }
+           [FromColumn("DataBag_atmentions")] int? DataBag_atmentions { get; }
+           [FromColumn("DataBag_channelmentions")] int? DataBag_channelmentions { get; }
+           [FromColumn("DataBag_teammentions")] int? DataBag_teammentions { get; }
+           [FromColumn("DataBag_closedBy")] string DataBag_closedBy { get; }
+           [FromColumn("Panel_LaunchSource")] string Panel_LaunchSource { get; }
+           [FromColumn("DataBag_CampaignId")] string DataBag_CampaignId { get; }
+           [FromColumn("DataBag_LinkType")] string DataBag_LinkType { get; }
+           //Convert.ToInt32(0) AS DataBag_privateTeamCount,
+           [FromColumn("DataBag_publicTeamCount")] int? DataBag_publicTeamCount { get; }
+           [FromColumn("DataBag_nonrelevantTeamCount")] int? DataBag_nonrelevantTeamCount { get; }
+           [FromColumn("DataBag_column")] string DataBag_column { get; }
+           [FromColumn("Databag_InstallationDistributionSource")] string Databag_InstallationDistributionSource { get; }
+           //Action_Outcome,
+           //Action_Gesture,
+           //Action_Scenario,
+           //Action_ScenarioType,
+           //Action_DestinationUri,
+           //Action_DestinationUriParams,
+           //Module_Type,
+           //Module_Name,
+           //Module_Summary,
+           //Module_State,
+           //Module_DirectiveLineage,
+           //Module_OrdinalLineage,
+           //ActionScenarioLowerCase,
+           //ActionScenarioTypeLowerCase,
+           //FriendlyActionScenarioName,
+           [FromColumn("Panel_Region")] string Panel_Region { get; }
+           [FromColumn("Panel_LaunchMethod")] string Panel_LaunchMethod { get; }
+           [FromColumn("Panel_PreviousUri")] string Panel_PreviousUri { get; }
+           [FromColumn("Panel_PreviousUriParams")] string Panel_PreviousUriParams { get; }
+        //int EcsWhitelistConfig { get; }
+
+    }
+
+
+public interface PanelActionSchemaAdjuster
+    {
+           [FromColumn("EventInfo_Source")] string EventInfo_Source { get; }
+           [FromColumn("EventInfo_Name")] string EventInfo_Name { get; }
+           [FromColumn("EventInfo_Time")] DateTime EventInfo_Time { get; }
+           [FromColumn("EventInfo_InitId")] string EventInfo_InitId { get; }
+           [FromColumn("EventInfo_SdkVersion")] string EventInfo_SdkVersion { get; }
+           [FromColumn("EventInfo_Sequence")] uint EventInfo_Sequence { get; }
+           [FromColumn("EventInfo_BaseType")] string EventInfo_BaseType { get; }
+           [FromColumn("EventInfo_Id")] string EventInfo_Id { get; }
+           [FromColumn("PipelineInfo_ClientCountry")] string PipelineInfo_ClientCountry { get; }
+           [FromColumn("PipelineInfo_AccountId")] string PipelineInfo_AccountId { get; }
+           [FromColumn("PipelineInfo_ClientIp")] string PipelineInfo_ClientIp { get; }
+           [FromColumn("PipelineInfo_IngestionTime")] DateTime? PipelineInfo_IngestionTime { get; }
+           [FromColumn("DeviceInfo_OsName")] string DeviceInfo_OsName { get; }
+           [FromColumn("DeviceInfo_OsVersion")] string DeviceInfo_OsVersion { get; }
+           [FromColumn("DeviceInfo_OsBuild")] string DeviceInfo_OsBuild { get; }
+           [FromColumn("DeviceInfo_Id")] string DeviceInfo_Id { get; }
+           [FromColumn("DeviceInfo_Make")] string DeviceInfo_Make { get; }
+           [FromColumn("DeviceInfo_Model")] string DeviceInfo_Model { get; }
+           [FromColumn("DeviceInfo_NetworkProvider")] string DeviceInfo_NetworkProvider { get; }
+           [FromColumn("DeviceInfo_NetworkType")] string DeviceInfo_NetworkType { get; }
+           [FromColumn("DeviceInfo_NetworkCost")] string DeviceInfo_NetworkCost { get; }
+           [FromColumn("DeviceInfo_DetailModel")] string DeviceInfo_DetailModel { get; }
+           [FromColumn("DeviceInfo_CpuArchitecture")] string DeviceInfo_CpuArchitecture { get; }
+           [FromColumn("DeviceInfo_CpuCores")] string DeviceInfo_CpuCores { get; }
+           [FromColumn("DeviceInfo_CpuSpeed")] string DeviceInfo_CpuSpeed { get; }
+           [FromColumn("DeviceInfo_SDKUid")] string DeviceInfo_SDKUid { get; }
+           [FromColumn("DeviceInfo_TotalMemory")] double DeviceInfo_TotalMemory { get; }
+           [FromColumn("DeviceInfo_BrowserName")] string DeviceInfo_BrowserName { get; }
+           [FromColumn("DeviceInfo_BrowserVersion")] string DeviceInfo_BrowserVersion { get; }
+           [FromColumn("machineId")] string machineId { get; }
+           [FromColumn("DeviceInfo_ScreenResolution")] string DeviceInfo_ScreenResolution { get; }
+           [FromColumn("DeviceInfo_PixelWidth")] int? DeviceInfo_PixelWidth { get; }
+           [FromColumn("DeviceInfo_PixelHeight")] int? DeviceInfo_PixelHeight { get; }
+           [FromColumn("AppInfo_Id")] string AppInfo_Id { get; }
+           [FromColumn("AppInfo_ClientType")] string AppInfo_ClientType { get; }
+           [FromColumn("AppInfo_Version")] string AppInfo_Version { get; }
+           [FromColumn("AppInfo_Environment")] string AppInfo_Environment { get; }
+           [FromColumn("AppInfo_Language")] string AppInfo_Language { get; }
+           [FromColumn("AppInfo_BuildTime")] DateTime? AppInfo_BuildTime { get; }
+           [FromColumn("AppInfo_ProcessArchitecture")] string AppInfo_ProcessArchitecture { get; }
+           [FromColumn("AppInfo_CommitHash")] string AppInfo_CommitHash { get; }
+           [FromColumn("AppInfo_ExperimentIds")] string AppInfo_ExperimentIds { get; }
+           [FromColumn("Session_Id")] string Session_Id { get; }
+           [FromColumn("UserInfo_Language")] string UserInfo_Language { get; }
+           [FromColumn("UserInfo_TimeZone")] string UserInfo_TimeZone { get; }
+           [FromColumn("UserInfo_Id")] string UserInfo_Id { get; }
+           [FromColumn("UserInfo_MsaId")] string UserInfo_MsaId { get; }
+           [FromColumn("UserInfo_ANID")] string UserInfo_ANID { get; }
+           [FromColumn("UserInfo_AdvertisingId")] string UserInfo_AdvertisingId { get; }
+           [FromColumn("UserInfo_Upn")] string UserInfo_Upn { get; }
+           [FromColumn("UserInfo_TenantId")] string UserInfo_TenantId { get; }
+           [FromColumn("UserInfo_Mri")] string UserInfo_Mri { get; }
+           [FromColumn("UserInfo_UserType")] string UserInfo_UserType { get; }
+           [FromColumn("UserInfo_ETag")] string UserInfo_ETag { get; }
+           [FromColumn("UserInfo_Flights")] string UserInfo_Flights { get; }
+           [FromColumn("UserInfo_Ring")] string UserInfo_Ring { get; }
+           [FromColumn("UserInfo_Role")] string UserInfo_Role { get; }
+           [FromColumn("UserInfo_LicenseType")] string UserInfo_LicenseType { get; }
+           [FromColumn("UserInfo_TenantModel")] string UserInfo_TenantModel { get; }
+           [FromColumn("Thread_Id")] string Thread_Id { get; }
+           [FromColumn("Thread_Type")] string Thread_Type { get; }
+           [FromColumn("Thread_Members")] int? Thread_Members { get; }
+           [FromColumn("Team_Id")] string Team_Id { get; }
+           [FromColumn("Team_Name")] string Team_Name { get; }
+           [FromColumn("Team_Size")] int? Team_Size { get; }
+           [FromColumn("Team_Visibility")] string Team_Visibility { get; }
+           [FromColumn("Team_Classification")] string Team_Classification { get; }
+           [FromColumn("Team_TeamType")] string Team_TeamType { get; }
+           [FromColumn("Team_OfficeGroupId")] string Team_OfficeGroupId { get; }
+           [FromColumn("Team_MemType")] string Team_MemType { get; }
+           [FromColumn("Panel_ViewId")] string Panel_ViewId { get; }
+           [FromColumn("Panel_Type")] string Panel_Type { get; }
+           [FromColumn("Panel_Uri")] string Panel_Uri { get; }
+           [FromColumn("Panel_UriParams")] string Panel_UriParams { get; }
+           [FromColumn("Tab_Id")] string Tab_Id { get; }
+           [FromColumn("Tab_Type")] string Tab_Type { get; }
+           [FromColumn("Tab_Ordinal")] int? Tab_Ordinal { get; }
+           [FromColumn("Call_Id")] string Call_Id { get; }
+           [FromColumn("Call_ParticipantId")] string Call_ParticipantId { get; }
+           [FromColumn("Databag_DefinitionId")] string Databag_DefinitionId { get; }
+           [FromColumn("Databag_FileControl")] string Databag_FileControl { get; }
+           [FromColumn("Databag_Directive")] string Databag_Directive { get; }
+           [FromColumn("Databag_CallId")] string Databag_CallId { get; }
+           [FromColumn("Databag_ParticipantId")] string Databag_ParticipantId { get; }
+           [FromColumn("Databag_MessageType")] string Databag_MessageType { get; }
+           [FromColumn("Databag_AtMentions")] string Databag_AtMentions { get; }
+           [FromColumn("Databag_FileAction")] string Databag_FileAction { get; }
+           [FromColumn("Databag_FileType")] string Databag_FileType { get; }
+           [FromColumn("Databag_Attachments")] string Databag_Attachments { get; }
+           [FromColumn("Databag_ChannelMentions")] string Databag_ChannelMentions { get; }
+           [FromColumn("Databag_Emoji")] string Databag_Emoji { get; }
+           [FromColumn("Databag_ImportantFlag")] string Databag_ImportantFlag { get; }
+           [FromColumn("Databag_Links")] string Databag_Links { get; }
+           [FromColumn("Databag_MessageLength")] string Databag_MessageLength { get; }
+           [FromColumn("Databag_Pinned")] string Databag_Pinned { get; }
+           [FromColumn("Databag_RichText")] string Databag_RichText { get; }
+           [FromColumn("Databag_RosterSize")] string Databag_RosterSize { get; }
+           [FromColumn("Databag_SfbInteropMessage")] string Databag_SfbInteropMessage { get; }
+           [FromColumn("Databag_Size")] string Databag_Size { get; }
+           [FromColumn("Databag_SubjectPresent")] string Databag_SubjectPresent { get; } 
+           [FromColumn("Databag_TeamMentions")] string Databag_TeamMentions { get; } 
+           [FromColumn("Databag_WasReply")] string Databag_WasReply { get; }
+           [FromColumn("Databag_ChainId")] string Databag_ChainId { get; }
+           [FromColumn("Databag_FeedReadState")] bool? Databag_FeedReadState { get; }
+           [FromColumn("Databag_FeedActivityId")] long? Databag_FeedActivityId { get; }
+           [FromColumn("Databag_metaInformation")] string Databag_metaInformation { get; }
+           [FromColumn("Databag_messageID")] string Databag_messageID { get; }
+           [FromColumn("Databag_parentMessageID")] string Databag_parentMessageID { get; }
+           [FromColumn("Databag_channelAction")] string Databag_channelAction { get; }
+           [FromColumn("Databag_state")] string Databag_state { get; }
+           [FromColumn("Databag_payload")] string Databag_payload { get; }
+           [FromColumn("Databag_FeedActivityType")] string Databag_FeedActivityType { get; }
+           [FromColumn("Databag_FeedLastMessageId")] long? Databag_FeedLastMessageId { get; }
+           [FromColumn("Databag_FeedSourceThreadId")] string Databag_FeedSourceThreadId { get; }
+           [FromColumn("Databag_FeedOriginatedDT")] DateTime? Databag_FeedOriginatedDT { get; }
+           [FromColumn("Databag_ActivityViewId_Guid")] string Databag_ActivityViewId_Guid { get; }
+           [FromColumn("Databag_ToastType")] string Databag_ToastType { get; }
+           [FromColumn("Databag_BotMentions")] long? Databag_BotMentions { get; }
+           //Convert.ToInt32(DataBag_currIndex) AS DataBag_currIndex,
+           [FromColumn("Bot_Id")] string Bot_Id { get; }
+           [FromColumn("Databag_BotMentionedMriCollection")] string Databag_BotMentionedMriCollection { get; }
+           [FromColumn("Message_CorrelationId")] string Message_CorrelationId { get; }
+           [FromColumn("Message_EndpointId")] string Message_EndpointId { get; }
+           [FromColumn("DataBag_Id")] string DataBag_Id { get; }
+           [FromColumn("DataBag_CoachMark")] string DataBag_CoachMark { get; }
+           [FromColumn("DataBag_Treatment")] string DataBag_Treatment { get; }
+           [FromColumn("DataBag_Message")] string DataBag_Message { get; }
+           [FromColumn("DataBag_SendType")] string DataBag_SendType { get; }
+           [FromColumn("DataBag_BotMri")] string DataBag_BotMri { get; }
+           [FromColumn("DataBag_botmentionedAppIdCollection")] string DataBag_botmentionedAppIdCollection { get; }
+           [FromColumn("App_Id")] string App_Id { get; }
+           [FromColumn("DataBag_Bot_Id")] string DataBag_Bot_Id { get; }
+           [FromColumn("DataBag_Team_Id")] string DataBag_Team_Id { get; }
+           [FromColumn("App_Connector_Id")] string App_Connector_Id { get; }
+           [FromColumn("App_StaticTabName")] string App_StaticTabName { get; } 
+           [FromColumn("DataBag_inputExtensionBotId")] string DataBag_inputExtensionBotId { get; }
+           [FromColumn("App_InputExtensionBotId")] string App_InputExtensionBotId { get; }
+           [FromColumn("ComposeExtension_BotId")] string ComposeExtension_BotId { get; }
+           [FromColumn("DataBag_inputExtensionMrisCollection")] string DataBag_inputExtensionMrisCollection { get; }
+           [FromColumn("Databag_AutoreconnectShown")] string Databag_AutoreconnectShown { get; }
+           [FromColumn("Databag_DialIn")] string Databag_DialIn { get; }
+           [FromColumn("Databag_DialOut")] string Databag_DialOut { get; }
+           [FromColumn("Databag_PreviousCallId")] string Databag_PreviousCallId { get; }
+           [FromColumn("Databag_PreviousParticipantId")] string Databag_PreviousParticipantId { get; } 
+           [FromColumn("Databag_Context")] string Databag_Context { get; }
+           [FromColumn("Databag_AlertName")] string Databag_AlertName { get; }
+           [FromColumn("DataBag_IsTeamNew")] bool? DataBag_IsTeamNew { get; }
+           [FromColumn("DataBag_IsChannelNew")] bool? DataBag_IsChannelNew { get; }
+           [FromColumn("DataBag_NewTeams")] int? DataBag_NewTeams { get; }
+           [FromColumn("DataBag_shortcutCommandIdentifier")] string DataBag_shortcutCommandIdentifier { get; }
+           [FromColumn("DataBag_invitationsSent")] int? DataBag_invitationsSent { get; }
+           [FromColumn("DataBag_slashCommand")] string DataBag_slashCommand { get; }
+           [FromColumn("DataBag_NewChannels")] int? DataBag_NewChannels { get; }
+           [FromColumn("Call_DataBag")] string Call_DataBag { get; }
+           [FromColumn("App_Source")] string App_Source { get; }
+           [FromColumn("Databag_ActionType")] string Databag_ActionType { get; }
+           [FromColumn("App_Name")] string App_Name { get; }
+           [FromColumn("App_ExternalId")] string App_ExternalId { get; }
+           [FromColumn("App_Capabilities")] string App_Capabilities { get; }
+           [FromColumn("App_IsTenantApp")] string App_IsTenantApp { get; }
+           [FromColumn("Databag_AppId")] string Databag_AppId { get; }
+           [FromColumn("App_Scope")] string App_Scope { get; }
+           [FromColumn("App_ScenarioCapability")] string App_ScenarioCapability { get; }
+           [FromColumn("Databag_totalFeedsCount")] string Databag_totalFeedsCount { get; }
+           [FromColumn("DataBag_isFavDefault")] bool? DataBag_isFavDefault { get; }
+           [FromColumn("DataBag_SuggestedChatClick")] bool? DataBag_SuggestedChatClick { get; }
+           [FromColumn("DataBag_attachments")] int? DataBag_attachments { get; }
+           [FromColumn("DataBag_atmentions")] int? DataBag_atmentions { get; }
+           [FromColumn("DataBag_channelmentions")] int? DataBag_channelmentions { get; }
+           [FromColumn("DataBag_teammentions")] int? DataBag_teammentions { get; }
+           [FromColumn("DataBag_closedBy")] string DataBag_closedBy { get; }
+           [FromColumn("Panel_LaunchSource")] string Panel_LaunchSource { get; }
+           [FromColumn("DataBag_CampaignId")] string DataBag_CampaignId { get; }
+           [FromColumn("DataBag_LinkType")] string DataBag_LinkType { get; }
+           [FromColumn("DataBag_privateTeamCount")] int? DataBag_privateTeamCount { get; }
+           [FromColumn("DataBag_publicTeamCount")] int? DataBag_publicTeamCount { get; }
+           [FromColumn("DataBag_nonrelevantTeamCount")] int? DataBag_nonrelevantTeamCount { get; }
+           [FromColumn("DataBag_column")] string DataBag_column { get; }
+           [FromColumn("Databag_InstallationDistributionSource")] string Databag_InstallationDistributionSource { get; }
+           [FromColumn("Action_Outcome")] string Action_Outcome { get; }
+           [FromColumn("Action_Gesture")] string Action_Gesture { get; }
+           [FromColumn("Action_Scenario")] string Action_Scenario { get; }
+           [FromColumn("Action_ScenarioType")] string Action_ScenarioType { get; }
+           [FromColumn("Action_DestinationUri")] string Action_DestinationUri { get; }
+           [FromColumn("Action_DestinationUriParams")] string Action_DestinationUriParams { get; }
+           [FromColumn("Module_Type")] string Module_Type { get; }
+           [FromColumn("Module_Name")] string Module_Name { get; }
+           //Module_Summary,
+           [FromColumn("Module_State")] string Module_State { get; }
+           [FromColumn("Module_DirectiveLineage")] string Module_DirectiveLineage { get; }
+           [FromColumn("Module_OrdinalLineage")] string Module_OrdinalLineage { get; }
+           [FromColumn("ActionScenarioLowerCase")] string ActionScenarioLowerCase { get; }
+           [FromColumn("ActionScenarioTypeLowerCase")] string ActionScenarioTypeLowerCase { get; }
+           [FromColumn("FriendlyActionScenarioName")] string FriendlyActionScenarioName { get; }
+           //"" AS Panel_Region,
+           //"" AS Panel_LaunchMethod,
+           //"" AS Panel_PreviousUri,
+           //"" AS Panel_PreviousUriParams
+
+    }
+
+#ENDCS

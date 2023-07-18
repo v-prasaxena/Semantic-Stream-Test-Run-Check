@@ -1,0 +1,168 @@
+﻿//Script GUID:3e9afc96-d844-465a-bfe6-785086d5ef99
+//Used for tracking history
+
+
+#IF ("@@input_reference_path@@".StartsWith("@@"))
+    #DECLARE input_reference_path string = "";
+#ELSE 
+    #DECLARE input_reference_path string = "@@input_reference_path@@";
+#ENDIF
+
+#IF ("@@input_base_path@@".StartsWith("@@"))
+    #DECLARE input_base_path string = "";
+#ELSE 
+    #DECLARE input_base_path string = "@@input_base_path@@";
+#ENDIF
+
+ 
+
+#IF ("@@output_base_path@@".StartsWith("@@"))
+    #DECLARE output_base_path string = "";
+#ELSE 
+    #DECLARE output_base_path string = "@@output_base_path@@";
+#ENDIF
+
+ 
+
+#IF ("@@microsoftbondDLL@@".StartsWith("@@"))
+    #DECLARE MicrosoftBond string = String.Format(@"{0}/SkypeHelpers/Latest/Microsoft.Bond.dll",@@input_reference_path@@);
+#ELSE
+    #DECLARE MicrosoftBond string =  @@microsoftbondDLL@@;   
+#ENDIF
+
+ 
+
+#IF ("@@microsoftbondinterfacesDLL@@".StartsWith("@@"))
+    #DECLARE MicrosoftBondInterfaces string = String.Format(@"{0}/SkypeHelpers/Latest/Microsoft.Bond.Interfaces.dll",@@input_reference_path@@);
+#ELSE
+    #DECLARE MicrosoftBondInterfaces string =  @@microsoftbondinterfacesDLL@@;   
+#ENDIF
+
+ 
+
+#IF ("@@NewtonsoftDLL@@".StartsWith("@@"))
+    #DECLARE Newtonsoft string = String.Format(@"{0}/SkypeHelpers/Latest/Newtonsoft.Json.dll",@@input_reference_path@@);
+#ELSE
+    #DECLARE Newtonsoft string =  @@NewtonsoftDLL@@;   
+#ENDIF
+
+ 
+
+#IF ("@@skypeSchemasDLL@@".StartsWith("@@"))
+    #DECLARE skypeSchemas string =  String.Format(@"{0}/SkypeSchemas/Latest/SkypeSchemas.dll",@@input_reference_path@@);
+#ELSE
+    #DECLARE skypeSchemas string =  @@skypeSchemasDLL@@;   
+#ENDIF
+#IF ("@@skypeHelpersDLL@@".StartsWith("@@"))
+    #DECLARE skypeHelpers string = String.Format(@"{0}/SkypeHelpers/Latest/SkypeHelpers.dll",@@input_reference_path@@);
+#ELSE
+    #DECLARE skypeHelpers string =  @@skypeHelpersDLL@@;   
+#ENDIF
+#IF ("@@microsoftbondrpcdll@@".StartsWith("@@"))
+    #DECLARE MicrosoftBondRpcdll string = String.Format(@"{0}/SkypeHelpers/Latest/Microsoft.Bond.Rpc.dll",@@input_reference_path@@);
+#ELSE
+    #DECLARE MicrosoftBondRpcdll string =  @@microsoftbondrpcdll@@;   
+#ENDIF
+#IF ("@@netTracedLL@@".StartsWith("@@"))
+    #DECLARE NetTracedll string = String.Format(@"{0}/SkypeHelpers/Latest/NetTrace.dll",@@input_reference_path@@);
+#ELSE
+    #DECLARE NetTracedll string =  @@netTracedLL@@;   
+#ENDIF
+#IF ("@@protobufdll@@".StartsWith("@@"))
+    #DECLARE protobufdll string = String.Format(@"{0}/SkypeHelpers/Latest/protobuf-net.dll",@@input_reference_path@@);
+#ELSE
+    #DECLARE protobufdll string =  @@protobufdll@@;   
+#ENDIF
+#IF ("@@skypedatadll@@".StartsWith("@@"))
+    #DECLARE skypeDatadll string = String.Format(@"{0}/SkypeHelpers/Latest/Skype.Data.Common.IO.Ray.dll",@@input_reference_path@@);
+#ELSE
+    #DECLARE skypeDatadll string =  @@skypedatadll@@;   
+#ENDIF
+
+ 
+
+REFERENCE @MicrosoftBond;
+REFERENCE @MicrosoftBondInterfaces;
+REFERENCE @Newtonsoft;
+REFERENCE @skypeSchemas;
+REFERENCE @skypeHelpers;
+REFERENCE @MicrosoftBondRpcdll;
+REFERENCE @NetTracedll;
+REFERENCE @protobufdll;
+REFERENCE @skypeDatadll;
+
+ 
+
+ 
+
+//GDPR Tagging Module
+#IF ("@@privacyModule@@".StartsWith("@@"))
+    #DECLARE privacyModulePath string = String.Format(@"{0}/PrivacyAnnotation/PrivacyAnnotation.module",@@input_reference_path@@);
+#ELSE
+    #DECLARE privacyModulePath string = @@privacyModule@@;
+#ENDIF
+
+MODULE @privacyModulePath AS DataMapCodeAnnotation;
+USING Microsoft.DataMap.CodeAnnotation.Cosmos;
+USING Privacy;
+
+USING Newtonsoft.Json;
+USING SkypeHelpers;
+USING System.Globalization;
+USING SkypeHelpers.MicrosoftTeams;
+USING SkypeHelpers.Schemas.Extractor;
+USING SkypeHelpers.Schemas;
+USING SkypeSchemas.Skype.MicrosoftTeams.Common;
+USING SkypeSchemas.Skype.MicrosoftTeams.Derived;
+USING SkypeSchemas.Skype.MicrosoftTeams.Warehouse;
+
+
+#DECLARE StartDate DateTime = DateTime.Parse(@"2023-07-01");
+#DECLARE StartDate_String string = @StartDate.ToString("yyyy-MM-dd"); 
+
+#DECLARE EndDate DateTime = DateTime.Parse(@"2023-07-07");
+#DECLARE EndDate_String string = @EndDate.ToString("yyyy-MM-dd");
+
+#DECLARE EndDate3Day_Lag DateTime = @EndDate.AddDays(3);
+#DECLARE EndDate3Day_Lag_String string = @EndDate3Day_Lag.ToString("yyyy-MM-dd");
+
+//Input
+#DECLARE Input string = @"/shares/skypedata.adhoc/local/microsoftteams/data/prod/SemanticStreams/structured/public/CollabAction";
+#DECLARE InputPattern string = "%Y/%m/%d/CollabAction_%Y_%m_%d.ss";
+
+//Output
+#DECLARE Output string = @"/shares/skypedata.adhoc/local/microsoftteams/data/prod/ProdIntelligence/Semanticstreamvalidation/CollabAction/JulyValidation_Prakhar.ss";
+
+MainData =
+SSTREAM SPARSE STREAMSET @Input
+                   PATTERN @InputPattern
+                   RANGE __date = [ @StartDate_String,@EndDate_String ]
+USING SchemaAdjuster<InputSchemaAdjuster>;
+
+Data_Lag =
+    SELECT UserId,
+    EventInfo_Time,
+           CP_EventTelemetryRegion
+    FROM MainData;
+
+Data =
+    SELECT COUNT(*) AS Eventcount,
+           COUNT (DISTINCT UserId) AS UserCount,
+           CP_EventTelemetryRegion
+    FROM Data_Lag
+    GROUP BY CP_EventTelemetryRegion;
+
+[Privacy.Asset.NonPersonal]
+OUTPUT TO SSTREAM @Output
+WITH STREAMEXPIRY "30"; 
+
+#CS
+
+
+public interface InputSchemaAdjuster
+    {
+           [FromColumn("CP_EventTelemetryRegion")] string CP_EventTelemetryRegion { get; }
+           [FromColumn("UserId")] string UserId { get; }
+           [FromColumn("EventInfo_Time")] DateTime EventInfo_Time { get; }
+       }    
+#ENDCS

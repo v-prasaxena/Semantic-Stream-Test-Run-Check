@@ -1,0 +1,59 @@
+﻿<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>a0876489-5f12-48fc-afae-185fbc2cdb61</ProjectGuid>
+    <OutputType>File</OutputType>
+    <AssemblyName>Algebra.xml</AssemblyName>
+    <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <Name>Semantic Stream + Daily Dumps</Name>
+    <RootNamespace>Semantic Stream Test Check</RootNamespace>
+    <VCSelectionInProjectProperty>&lt;Use Current VC in VC Selector&gt;</VCSelectionInProjectProperty>
+    <CosmosRuntimeVersion>Default</CosmosRuntimeVersion>
+    <ScopePath>%24(SCRIPT_DIR);%24(CLUSTER_ROOT);%24(SCOPE_DIR);%24(PROJECT_DIR)</ScopePath>
+    <InputStreamSearchPath>%24(PROJECT_DIR);%24(SCRIPT_DIR);%24(CLUSTER_ROOT)</InputStreamSearchPath>
+    <VertexDebugSolution>false</VertexDebugSolution>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\Debug\</OutputPath>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugSymbols>false</DebugSymbols>
+    <OutputPath>bin\Release\</OutputPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <Script Include="Copilot Semantic Stream\Teams Copilot Semantic Stream.script" />
+    <Script Include="Copilot Semantic Stream\Prod Validation 1R.script" />
+    <Script Include="Daily Dumps\DailyDumps.script" />
+    <Script Include="Teams Premium Prod Validation\Teams Premium Semantic Stream.script" />
+    <Script Include="Parquest File to Structured Streams\Py_to_ss.script">
+      <RemoveUselessParameters>False</RemoveUselessParameters>
+      <ScopeClusterParameters>date=(\"2023-04-18\"),input_base_path=(\"/shares/skypedata.adhoc/\"),output_base_path=(\"/shares/skypedata.adhoc/\"),cloud_type=(\"public\"),workload=(\"Copilot\"),expiration_days=(\"14\")</ScopeClusterParameters>
+    </Script>
+    <ScriptCode Include="Copilot Semantic Stream\Teams Copilot Semantic Stream.script.cs">
+      <DependentUpon>Copilot Semantic Stream\Teams Copilot Semantic Stream.script</DependentUpon>
+    </ScriptCode>
+    <ScriptCode Include="Copilot Semantic Stream\Prod Validation 1R.script.cs">
+      <DependentUpon>Copilot Semantic Stream\Prod Validation 1R.script</DependentUpon>
+    </ScriptCode>
+    <ScriptCode Include="Daily Dumps\DailyDumps.script.cs">
+      <DependentUpon>Daily Dumps\DailyDumps.script</DependentUpon>
+    </ScriptCode>
+    <ScriptCode Include="Teams Premium Prod Validation\Teams Premium Semantic Stream.script.cs">
+      <DependentUpon>Teams Premium Prod Validation\Teams Premium Semantic Stream.script</DependentUpon>
+    </ScriptCode>
+    <ScriptCode Include="Test Run\Py_to_ss.script.cs">
+      <DependentUpon>Parquest File to Structured Streams\Py_to_ss.script</DependentUpon>
+    </ScriptCode>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Daily Dumps" />
+    <Folder Include="Copilot Semantic Stream" />
+    <Folder Include="Teams Premium Prod Validation" />
+    <Folder Include="Parquest File to Structured Streams" />
+  </ItemGroup>
+  <Import Project="$(AppData)\Microsoft\ScopeStudio\MsBuild\1.0\Scope.targets" />
+</Project>

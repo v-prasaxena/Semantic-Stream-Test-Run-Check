@@ -1,0 +1,31 @@
+﻿//Script GUID:d81bf5ef-72ed-4f67-a00e-bef3d3141e29
+//Used for tracking history
+//GDPR
+
+//[PIN] REFERENCE @"/shares/skypedata.adhoc/SkypeHelpers/Latest/SkypeHelpers.dll";
+//[PIN] REFERENCE @"/shares/skypedata.adhoc/SkypeSchemas/Latest/SkypeSchemas.dll";
+
+
+MODULE "/shares/PXSCosmos14.Prod/PXS.DeleteSignal.PROD/PrivacyAnnotation/PrivacyAnnotation.module";
+USING Privacy;
+
+#DECLARE CopilotDataResult  string   = "/shares/skypedata.adhoc/local/microsoftteams/data/DataScience/ProdIntelligence/Copilot/Collabaction_Test.ss";
+
+CopilotData=     
+SELECT *
+FROM
+(
+    VIEW @"/shares/skypedata.adhoc/local/microsoftteams/data/prod/SemanticStreams/structured/SemanticStreamInternal.view"
+    PARAMS
+   (
+         startDate = DateTime.Parse(@"2023-07-01"),
+         endDate = DateTime.Parse(@"2023-07-07"),
+         Modality = "collabaction"
+    )
+);
+
+ [Privacy.Asset.NonPersonal]
+OUTPUT
+TO SSTREAM @CopilotDataResult
+WITH STREAMEXPIRY "28";
+

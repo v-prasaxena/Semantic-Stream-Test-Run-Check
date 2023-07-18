@@ -1,0 +1,42 @@
+﻿//Script GUID:d81bf5ef-72ed-4f67-a00e-bef3d3141e29
+//Used for tracking history
+//GDPR
+
+[PIN] REFERENCE @"/shares/skypedata.adhoc/SkypeHelpers/Latest/SkypeHelpers.dll";
+[PIN] REFERENCE @"/shares/skypedata.adhoc/SkypeSchemas/Latest/SkypeSchemas.dll";
+
+
+MODULE "/shares/PXSCosmos14.Prod/PXS.DeleteSignal.PROD/PrivacyAnnotation/PrivacyAnnotation.module";
+USING Privacy;
+
+//=========================================================Output===========================================================================
+
+#DECLARE Semantic_Basedata  string   = @"/shares/skypedata.adhoc/local/microsoftteams/data/DataScience/ProdIntelligence/Matthews_AdHoc_Asks/Baselining_SuccessMetrics_AdminApp/BaseData/SemanticStreams_JanFebMarch_Data.ss";
+
+Semantic =
+    SELECT TenantId,
+           UserId,
+           SubworkloadScenario
+    FROM
+    (
+        VIEW @"/shares/skypedata.adhoc/local/microsoftteams/data/prod/SemanticStreams/structured/SemanticStreamInternal.view"
+        PARAMS
+        (
+            startDate = DateTime.Parse(@"2023-01-04"),
+            endDate = DateTime.Parse(@"2023-01-31"),
+            Modality = "teamspremium"
+        )
+    )
+    GROUP BY TenantId,
+             UserId,
+             EventTimeStamp,
+             Workload,
+             Subworkload,
+             SubworkloadScenario;
+
+[Privacy.DataType.ProductAndServiceUsage]
+[Privacy.Column.TenantId(Column="TenantId")]
+[Privacy.Column.TenantId(Column="UserId")]
+OUTPUT
+TO SSTREAM @Semantic_Basedata
+WITH STREAMEXPIRY "90";
